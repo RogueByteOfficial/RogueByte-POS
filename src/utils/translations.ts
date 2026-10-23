@@ -57,8 +57,15 @@ export const translations = {
     customerPhone: 'رقم هاتف العميل',
     orderNotes: 'ملاحظات الفاتورة',
 
-    // Payments
     paymentTitle: 'خيارات الدفع',
+    quickSaleMethods: 'طرق البيع السريعة',
+    quickCashExact: 'كاش فوري (بالضبط)',
+    quickCard: 'بطاقة POS فورية',
+    selectPaymentMethodFirst: 'حدد طريقة البيع والدفع قبل إصدار الفاتورة',
+    confirmAndPrint: 'تأكيد البيع وطباعة الفاتورة',
+    confirmWithoutPrint: 'تأكيد البيع فقط (بدون طباعة)',
+    autoPrintReceipt: 'طباعة الفاتورة تلقائياً',
+    printReceiptOption: 'طباعة الفاتورة الورقية',
     payMethodCash: 'دفع نقدي (Cash)',
     payMethodCard: 'بطاقة مصرفية (POS Terminal)',
     payMethodSplit: 'دفع مجزأ (نقد + بطاقة)',
@@ -258,6 +265,14 @@ export const translations = {
 
     // Payments
     paymentTitle: 'Payment Methods',
+    quickSaleMethods: 'Quick Sale Methods',
+    quickCashExact: 'Instant Cash (Exact)',
+    quickCard: 'Instant POS Card',
+    selectPaymentMethodFirst: 'Select sale & payment method before issuing receipt',
+    confirmAndPrint: 'Confirm & Print Receipt',
+    confirmWithoutPrint: 'Confirm Sale (No Print)',
+    autoPrintReceipt: 'Auto-Print Receipt',
+    printReceiptOption: 'Print Paper Receipt',
     payMethodCash: 'Cash Payment',
     payMethodCard: 'Bank Card (POS Terminal)',
     payMethodSplit: 'Split Payment (Cash + Card)',

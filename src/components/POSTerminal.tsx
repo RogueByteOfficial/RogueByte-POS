@@ -1,13 +1,16 @@
 import React, { useEffect, useState } from 'react';
 import {
   AlertCircle,
+  Banknote,
   Barcode,
   Camera,
   Check,
   Clock,
+  CreditCard,
   Minus,
   Percent,
   Plus,
+  Printer,
   RotateCcw,
   Search,
   ShoppingCart,
@@ -38,6 +41,7 @@ export const POSTerminal: React.FC = () => {
     holdCurrentCart,
     recallHeldOrder,
     deleteHeldOrder,
+    completePayment,
     t,
     language,
     currentStaff,
@@ -50,6 +54,40 @@ export const POSTerminal: React.FC = () => {
   const [isHeldModalOpen, setIsHeldModalOpen] = useState<boolean>(false);
   const [discountInput, setDiscountInput] = useState<string>('');
   const [showDiscountModal, setShowDiscountModal] = useState<boolean>(false);
+  const [autoPrintAfterSale, setAutoPrintAfterSale] = useState<boolean>(true);
+
+  // Quick sale handlers directly from the cashier cart panel
+  const handleQuickCashSale = () => {
+    if (cart.length === 0) return;
+    completePayment(
+      {
+        method: 'cash',
+        cashTendered: cartTotal,
+        changeAmount: 0,
+        transactionRef: `CSH-${Math.floor(100000 + Math.random() * 900000)}`,
+      },
+      undefined,
+      undefined,
+      undefined,
+      autoPrintAfterSale
+    );
+  };
+
+  const handleQuickCardSale = () => {
+    if (cart.length === 0) return;
+    completePayment(
+      {
+        method: 'card',
+        cardType: 'Debit (عُمان)',
+        cardAuthCode: `AUTH-${Math.floor(1000 + Math.random() * 9000)}`,
+        transactionRef: `POS-${Math.floor(100000 + Math.random() * 900000)}`,
+      },
+      undefined,
+      undefined,
+      undefined,
+      autoPrintAfterSale
+    );
+  };
 
   // USB Barcode Scanner hardware listener (buffers fast keystrokes ending with Enter)
   useEffect(() => {
@@ -403,14 +441,55 @@ export const POSTerminal: React.FC = () => {
               </div>
             </div>
 
-            {/* Big Checkout Button */}
-            <button
-              onClick={() => setIsPaymentOpen(true)}
-              className="w-full py-3.5 px-4 bg-amber-500 hover:bg-amber-400 active:scale-[0.99] text-slate-950 text-sm font-black rounded-xl flex items-center justify-center gap-2 transition-all shadow-lg shadow-amber-500/20 cursor-pointer"
-            >
-              <Wallet className="w-5 h-5" />
-              <span>{t.proceedToPayment}</span>
-            </button>
+            {/* Quick Selling & Payment Methods */}
+            <div className="space-y-2 pt-2 border-t border-slate-800/80">
+              <div className="flex items-center justify-between text-[11px] text-slate-400">
+                <span className="font-semibold text-slate-300">{t.quickSaleMethods}</span>
+                {/* Auto-print toggle */}
+                <label className="flex items-center gap-1.5 cursor-pointer hover:text-white select-none">
+                  <input
+                    type="checkbox"
+                    checked={autoPrintAfterSale}
+                    onChange={(e) => setAutoPrintAfterSale(e.target.checked)}
+                    className="w-3.5 h-3.5 accent-amber-500 rounded bg-slate-900 border-slate-700"
+                  />
+                  <Printer className="w-3 h-3 text-amber-400" />
+                  <span className="text-[10px]">{t.autoPrintReceipt}</span>
+                </label>
+              </div>
+
+              {/* Quick Sale 1-Click Buttons */}
+              <div className="grid grid-cols-2 gap-2">
+                <button
+                  type="button"
+                  onClick={handleQuickCashSale}
+                  className="py-2.5 px-3 bg-emerald-600/20 hover:bg-emerald-600/30 text-emerald-300 border border-emerald-500/30 rounded-xl flex items-center justify-center gap-2 text-xs font-bold transition-all active:scale-[0.98] cursor-pointer shadow-sm"
+                  title={t.quickCashExact}
+                >
+                  <Banknote className="w-4 h-4" />
+                  <span>{t.quickCashExact}</span>
+                </button>
+
+                <button
+                  type="button"
+                  onClick={handleQuickCardSale}
+                  className="py-2.5 px-3 bg-blue-600/20 hover:bg-blue-600/30 text-blue-300 border border-blue-500/30 rounded-xl flex items-center justify-center gap-2 text-xs font-bold transition-all active:scale-[0.98] cursor-pointer shadow-sm"
+                  title={t.quickCard}
+                >
+                  <CreditCard className="w-4 h-4" />
+                  <span>{t.quickCard}</span>
+                </button>
+              </div>
+
+              {/* All Payment Methods (Split, Credit, Tender Change, Customer Info) */}
+              <button
+                onClick={() => setIsPaymentOpen(true)}
+                className="w-full py-3 px-4 bg-amber-500 hover:bg-amber-400 active:scale-[0.99] text-slate-950 text-xs font-black rounded-xl flex items-center justify-center gap-2 transition-all shadow-lg shadow-amber-500/20 cursor-pointer"
+              >
+                <Wallet className="w-4 h-4" />
+                <span>{t.proceedToPayment} ({language === 'ar' ? 'كافة طرق البيع' : 'All Methods'})</span>
+              </button>
+            </div>
           </div>
         )}
       </div>

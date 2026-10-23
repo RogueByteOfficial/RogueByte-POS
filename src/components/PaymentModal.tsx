@@ -5,7 +5,9 @@ import {
   CreditCard,
   DollarSign,
   Layers,
+  Printer,
   QrCode,
+  Smartphone,
   User,
   Users,
   Wallet,
@@ -25,7 +27,7 @@ export const PaymentModal: React.FC<PaymentModalProps> = ({ isOpen, onClose }) =
 
   const [method, setMethod] = useState<PaymentMethod>('cash');
   const [cashTendered, setCashTendered] = useState<number>(cartTotal);
-  const [cardType, setCardType] = useState<string>('Visa');
+  const [cardType, setCardType] = useState<string>('Debit (عُمان)');
   
   // Split payment state
   const [splitCash, setSplitCash] = useState<number>(Number((cartTotal / 2).toFixed(3)));
@@ -60,7 +62,7 @@ export const PaymentModal: React.FC<PaymentModalProps> = ({ isOpen, onClose }) =
     setSplitCard(Number(Math.max(0, cartTotal - cashVal).toFixed(3)));
   };
 
-  const handleConfirm = () => {
+  const handleConfirm = (openReceipt: boolean = true) => {
     const details: PaymentDetails = {
       method,
       transactionRef: `TXN-${Math.floor(100000 + Math.random() * 900000)}`,
@@ -79,9 +81,11 @@ export const PaymentModal: React.FC<PaymentModalProps> = ({ isOpen, onClose }) =
       details.creditCustomerName = customerName;
       details.creditCustomerPhone = customerPhone;
       details.creditDueDate = creditDueDate;
+    } else if (method === 'mobile_pay') {
+      details.transactionRef = `MB-${Math.floor(100000 + Math.random() * 900000)}`;
     }
 
-    completePayment(details, customerName, customerPhone, notes);
+    completePayment(details, customerName, customerPhone, notes, openReceipt);
     onClose();
   };
 
@@ -110,13 +114,29 @@ export const PaymentModal: React.FC<PaymentModalProps> = ({ isOpen, onClose }) =
         </div>
 
         {/* Content */}
-        <div className="p-6 space-y-6">
+        <div className="p-6 space-y-5">
+          {/* Step guidance banner */}
+          <div className="bg-amber-500/10 border border-amber-500/20 rounded-xl p-3 flex items-center justify-between text-xs text-amber-300">
+            <span className="font-medium">{t.selectPaymentMethodFirst}</span>
+            <span className="font-mono font-bold bg-amber-500/20 px-2.5 py-0.5 rounded text-[11px]">
+              {method === 'cash'
+                ? t.payMethodCash
+                : method === 'card'
+                ? t.payMethodCard
+                : method === 'split'
+                ? t.payMethodSplit
+                : method === 'credit'
+                ? t.payMethodCredit
+                : t.payMethodMobile}
+            </span>
+          </div>
+
           {/* Payment Method Selector Tabs */}
-          <div className="grid grid-cols-2 sm:grid-cols-4 gap-2">
+          <div className="grid grid-cols-2 sm:grid-cols-5 gap-2">
             <button
               type="button"
               onClick={() => setMethod('cash')}
-              className={`flex flex-col items-center justify-center p-3 rounded-xl border text-center transition-all ${
+              className={`flex flex-col items-center justify-center p-3 rounded-xl border text-center transition-all cursor-pointer ${
                 method === 'cash'
                   ? 'border-amber-500 bg-amber-500/15 text-amber-300 font-bold shadow-sm'
                   : 'border-slate-800 bg-slate-950/40 text-slate-400 hover:text-slate-200 hover:bg-slate-800'
@@ -129,7 +149,7 @@ export const PaymentModal: React.FC<PaymentModalProps> = ({ isOpen, onClose }) =
             <button
               type="button"
               onClick={() => setMethod('card')}
-              className={`flex flex-col items-center justify-center p-3 rounded-xl border text-center transition-all ${
+              className={`flex flex-col items-center justify-center p-3 rounded-xl border text-center transition-all cursor-pointer ${
                 method === 'card'
                   ? 'border-amber-500 bg-amber-500/15 text-amber-300 font-bold shadow-sm'
                   : 'border-slate-800 bg-slate-950/40 text-slate-400 hover:text-slate-200 hover:bg-slate-800'
@@ -142,7 +162,7 @@ export const PaymentModal: React.FC<PaymentModalProps> = ({ isOpen, onClose }) =
             <button
               type="button"
               onClick={() => setMethod('split')}
-              className={`flex flex-col items-center justify-center p-3 rounded-xl border text-center transition-all ${
+              className={`flex flex-col items-center justify-center p-3 rounded-xl border text-center transition-all cursor-pointer ${
                 method === 'split'
                   ? 'border-amber-500 bg-amber-500/15 text-amber-300 font-bold shadow-sm'
                   : 'border-slate-800 bg-slate-950/40 text-slate-400 hover:text-slate-200 hover:bg-slate-800'
@@ -155,7 +175,7 @@ export const PaymentModal: React.FC<PaymentModalProps> = ({ isOpen, onClose }) =
             <button
               type="button"
               onClick={() => setMethod('credit')}
-              className={`flex flex-col items-center justify-center p-3 rounded-xl border text-center transition-all ${
+              className={`flex flex-col items-center justify-center p-3 rounded-xl border text-center transition-all cursor-pointer ${
                 method === 'credit'
                   ? 'border-amber-500 bg-amber-500/15 text-amber-300 font-bold shadow-sm'
                   : 'border-slate-800 bg-slate-950/40 text-slate-400 hover:text-slate-200 hover:bg-slate-800'
@@ -163,6 +183,19 @@ export const PaymentModal: React.FC<PaymentModalProps> = ({ isOpen, onClose }) =
             >
               <Users className="w-5 h-5 mb-1.5" />
               <span className="text-xs truncate">{t.payMethodCredit}</span>
+            </button>
+
+            <button
+              type="button"
+              onClick={() => setMethod('mobile_pay')}
+              className={`flex flex-col items-center justify-center p-3 rounded-xl border text-center transition-all cursor-pointer ${
+                method === 'mobile_pay'
+                  ? 'border-amber-500 bg-amber-500/15 text-amber-300 font-bold shadow-sm'
+                  : 'border-slate-800 bg-slate-950/40 text-slate-400 hover:text-slate-200 hover:bg-slate-800'
+              }`}
+            >
+              <Smartphone className="w-5 h-5 mb-1.5" />
+              <span className="text-xs truncate">{t.payMethodMobile}</span>
             </button>
           </div>
 
@@ -199,7 +232,7 @@ export const PaymentModal: React.FC<PaymentModalProps> = ({ isOpen, onClose }) =
                       key={idx}
                       type="button"
                       onClick={() => setCashTendered(opt.value)}
-                      className="py-2 px-2.5 rounded-lg bg-slate-800 hover:bg-slate-700 text-slate-200 font-mono text-xs font-semibold border border-slate-700 transition-colors"
+                      className="py-2 px-2.5 rounded-lg bg-slate-800 hover:bg-slate-700 text-slate-200 font-mono text-xs font-semibold border border-slate-700 transition-colors cursor-pointer"
                     >
                       {opt.label}
                     </button>
@@ -233,15 +266,15 @@ export const PaymentModal: React.FC<PaymentModalProps> = ({ isOpen, onClose }) =
               </div>
 
               <div className="grid grid-cols-3 gap-2 pt-2">
-                {['Visa', 'MasterCard', 'Debit (عُمان)'].map((card) => (
+                {['Debit (عُمان)', 'Visa', 'MasterCard'].map((card) => (
                   <button
                     key={card}
                     type="button"
                     onClick={() => setCardType(card)}
-                    className={`py-2 text-xs font-bold rounded-lg border transition-all ${
+                    className={`py-2 text-xs font-bold rounded-lg border transition-all cursor-pointer ${
                       cardType === card
                         ? 'border-amber-500 bg-amber-500/20 text-amber-300'
-                        : 'border-slate-800 bg-slate-900 text-slate-400'
+                        : 'border-slate-800 bg-slate-900 text-slate-400 hover:bg-slate-800'
                     }`}
                   >
                     {card}
@@ -333,6 +366,26 @@ export const PaymentModal: React.FC<PaymentModalProps> = ({ isOpen, onClose }) =
             </div>
           )}
 
+          {/* Method 5: Mobile / QR Transfer */}
+          {method === 'mobile_pay' && (
+            <div className="space-y-4 p-4 rounded-xl bg-slate-950/60 border border-slate-800 text-center">
+              <div className="w-12 h-12 mx-auto rounded-full bg-emerald-500/10 text-emerald-400 flex items-center justify-center">
+                <Smartphone className="w-6 h-6" />
+              </div>
+              <div>
+                <p className="text-xs text-white font-bold mb-1">
+                  {language === 'ar' ? 'دفع عبر التحويل البنكي الفوري أو المحفظة الإلكترونية' : 'Instant Mobile Banking / QR Wallet Payment'}
+                </p>
+                <p className="text-[11px] text-slate-400">
+                  {language === 'ar' ? 'يدعم ثواني (Thawani)، بنك مسقط، وبنك ظفار والمحافظ المعتمدة' : 'Supports Thawani Pay, Bank Muscat, Meethaq & national mobile wallets'}
+                </p>
+              </div>
+              <div className="p-3 bg-slate-900 rounded-lg border border-slate-800 text-xs text-slate-300 font-mono">
+                {language === 'ar' ? 'مرجع التحويل:' : 'Transfer Ref:'} TXN-{Math.floor(100000 + Math.random() * 900000)}
+              </div>
+            </div>
+          )}
+
           {/* Optional Customer Info & Notes */}
           {method !== 'credit' && (
             <div className="grid grid-cols-2 gap-3 pt-1">
@@ -364,23 +417,39 @@ export const PaymentModal: React.FC<PaymentModalProps> = ({ isOpen, onClose }) =
           )}
         </div>
 
-        {/* Footer */}
-        <div className="flex items-center justify-between px-6 py-4 border-t border-slate-800 bg-slate-950/80">
+        {/* Footer with Distinct Print vs No-Print Actions */}
+        <div className="flex flex-col sm:flex-row items-center justify-between gap-3 px-6 py-4 border-t border-slate-800 bg-slate-950/80">
           <button
             type="button"
             onClick={onClose}
-            className="px-4 py-2 text-xs font-medium text-slate-400 hover:text-white bg-slate-800 rounded-xl transition-colors"
+            className="w-full sm:w-auto px-4 py-2 text-xs font-medium text-slate-400 hover:text-white bg-slate-800 rounded-xl transition-colors cursor-pointer"
           >
             {t.cancel}
           </button>
-          <button
-            type="button"
-            onClick={handleConfirm}
-            className="flex items-center gap-2 px-6 py-2.5 bg-amber-500 hover:bg-amber-400 text-slate-950 font-bold text-xs rounded-xl transition-colors shadow-lg shadow-amber-500/20"
-          >
-            <CheckCircle className="w-4 h-4" />
-            <span>{t.confirmPayment}</span>
-          </button>
+          
+          <div className="flex items-center gap-2.5 w-full sm:w-auto justify-end">
+            {/* Complete Sale ONLY (without printing) */}
+            <button
+              type="button"
+              onClick={() => handleConfirm(false)}
+              className="flex-1 sm:flex-none flex items-center justify-center gap-1.5 px-4 py-2.5 bg-slate-800 hover:bg-slate-700 text-slate-200 hover:text-white font-bold text-xs rounded-xl border border-slate-700 transition-colors cursor-pointer"
+              title={t.confirmWithoutPrint}
+            >
+              <CheckCircle className="w-4 h-4 text-emerald-400" />
+              <span>{t.confirmWithoutPrint}</span>
+            </button>
+
+            {/* Complete Sale & PRINT Receipt */}
+            <button
+              type="button"
+              onClick={() => handleConfirm(true)}
+              className="flex-1 sm:flex-none flex items-center justify-center gap-2 px-5 py-2.5 bg-amber-500 hover:bg-amber-400 text-slate-950 font-black text-xs rounded-xl transition-colors shadow-lg shadow-amber-500/20 cursor-pointer"
+              title={t.confirmAndPrint}
+            >
+              <Printer className="w-4 h-4" />
+              <span>{t.confirmAndPrint}</span>
+            </button>
+          </div>
         </div>
       </div>
     </div>

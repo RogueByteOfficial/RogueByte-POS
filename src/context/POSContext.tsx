@@ -93,7 +93,8 @@ interface POSContextType {
     paymentDetails: PaymentDetails,
     customerName?: string,
     customerPhone?: string,
-    notes?: string
+    notes?: string,
+    openReceipt?: boolean
   ) => Order;
   orders: Order[];
   refundOrder: (orderId: string) => void;
@@ -532,7 +533,8 @@ export const POSProvider: React.FC<{ children: React.ReactNode }> = ({ children 
     paymentDetails: PaymentDetails,
     customerName?: string,
     customerPhone?: string,
-    notes?: string
+    notes?: string,
+    openReceipt: boolean = true
   ): Order => {
     const invoiceNum = `INV-${Date.now().toString().slice(-6)}`;
     const newOrder: Order = {
@@ -576,7 +578,9 @@ export const POSProvider: React.FC<{ children: React.ReactNode }> = ({ children 
     syncOrderToFirestore(newOrder).catch(() => {});
 
     setLastCompletedOrder(newOrder);
-    setIsReceiptModalOpen(true);
+    if (openReceipt) {
+      setIsReceiptModalOpen(true);
+    }
     clearCart();
     posAudio.playSuccessChime();
 
