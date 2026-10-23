@@ -1,0 +1,44 @@
+@import "tailwindcss";
+
+@layer base {
+  :root {
+    --font-ar: 'Cairo', system-ui, -apple-system, sans-serif;
+    --font-en: 'Plus Jakarta Sans', system-ui, -apple-system, sans-serif;
+    --font-mono: 'JetBrains Mono', monospace;
+  }
+
+  [dir="rtl"] {
+    font-family: var(--font-ar);
+  }
+
+  [dir="ltr"] {
+    font-family: var(--font-en);
+  }
+
+  /* Custom subtle scrollbar */
+  ::-webkit-scrollbar {
+    width: 6px;
+    height: 6px;
+  }
+  ::-webkit-scrollbar-track {
+    background: transparent;
+  }
+  ::-webkit-scrollbar-thumb {
+    background: rgba(148, 163, 184, 0.2);
+    border-radius: 9999px;
+  }
+  ::-webkit-scrollbar-thumb:hover {
+    background: rgba(148, 163, 184, 0.4);
+  }
+}
+
+/* Receipt paper thermal effect */
+.receipt-paper {
+  background-color: #ffffff;
+  color: #111827;
+  font-family: 'Courier New', Courier, monospace;
+}
+
+.tabular-nums {
+  font-variant-numeric: tabular-nums;
+}

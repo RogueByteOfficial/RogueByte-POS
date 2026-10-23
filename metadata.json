@@ -1,0 +1,6 @@
+{
+  "name": "RogueByte POS",
+  "description": "نظام نقاط البيع وإدارة المخزون المتكامل مع دعم الفواتير الضريبية وتعدد الفروع والصلاحيات لـ RogueByte",
+  "requestFramePermissions": ["camera"],
+  "majorCapabilities": ["MAJOR_CAPABILITY_SERVER_SIDE_GEMINI_API"]
+}
