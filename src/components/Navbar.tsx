@@ -1,6 +1,7 @@
 import React, { useState } from 'react';
 import {
   Building2,
+  Cloud,
   Globe,
   KeyRound,
   LayoutGrid,
@@ -42,6 +43,7 @@ export const Navbar: React.FC<NavbarProps> = ({ activeTab, setActiveTab }) => {
     setLanguage,
     soundEnabled,
     toggleSound,
+    isCloudConnected,
     t,
   } = usePOS();
 
@@ -109,6 +111,17 @@ export const Navbar: React.FC<NavbarProps> = ({ activeTab, setActiveTab }) => {
 
         {/* Zone 3: Quick Action Controls */}
         <div className="flex items-center gap-2 shrink-0">
+          {/* Cloud Database Status */}
+          {isCloudConnected && (
+            <div
+              className="hidden xl:flex items-center gap-1.5 px-2.5 py-1.5 rounded-xl bg-emerald-500/10 border border-emerald-500/20 text-emerald-400 text-xs font-mono font-medium"
+              title="Firebase Firestore Cloud Connected"
+            >
+              <Cloud className="w-3.5 h-3.5" />
+              <span>Firebase Cloud</span>
+            </div>
+          )}
+
           {/* Branch Switcher Pill */}
           <div className="relative hidden md:block">
             <button

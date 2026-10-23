@@ -1,0 +1,52 @@
+rules_version = '2';
+service cloud.firestore {
+  match /databases/{database}/documents {
+    // Helper function for validating document IDs
+    function isValidId(id) {
+      return id is string && id.size() <= 128 && id.matches('^[a-zA-Z0-9_\\-]+$');
+    }
+
+    // Default deny catch-all
+    match /{document=**} {
+      allow read, write: if false;
+    }
+
+    // Products collection: Retail catalog, prices and stock inventory
+    match /products/{productId} {
+      allow read: if true;
+      allow write: if isValidId(productId);
+    }
+
+    // Orders collection: Point of sale transactions and tax invoices
+    match /orders/{orderId} {
+      allow read: if true;
+      allow create: if isValidId(orderId);
+      allow update: if isValidId(orderId);
+      allow delete: if false; // Invoices must be preserved for audit
+    }
+
+    // Branches collection: Retail store locations
+    match /branches/{branchId} {
+      allow read: if true;
+      allow write: if isValidId(branchId);
+    }
+
+    // Staff collection: Cashier, accountant, and manager profiles
+    match /staff/{staffId} {
+      allow read: if true;
+      allow write: if isValidId(staffId);
+    }
+
+    // Expenses collection: Operational expense records
+    match /expenses/{expenseId} {
+      allow read: if true;
+      allow write: if isValidId(expenseId);
+    }
+
+    // Settings collection: Global store details and invoice notes
+    match /settings/{settingsId} {
+      allow read: if true;
+      allow write: if isValidId(settingsId);
+    }
+  }
+}

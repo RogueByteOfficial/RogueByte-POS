@@ -1,0 +1,144 @@
+{
+  "entities": {
+    "Product": {
+      "title": "Product",
+      "description": "Retail item in the RogueByte POS inventory",
+      "type": "object",
+      "properties": {
+        "barcode": { "type": "string", "maxLength": 64, "description": "1D or 2D barcode" },
+        "sku": { "type": "string", "maxLength": 64, "description": "Stock keeping unit" },
+        "nameAr": { "type": "string", "maxLength": 200, "description": "Product Arabic name" },
+        "nameEn": { "type": "string", "maxLength": 200, "description": "Product English name" },
+        "category": { "type": "string", "maxLength": 100, "description": "Category ID or name" },
+        "costPrice": { "type": "number", "description": "Cost price in OMR" },
+        "sellingPrice": { "type": "number", "description": "Selling retail price in OMR" },
+        "taxRate": { "type": "number", "description": "Tax rate percent (e.g. 5)" },
+        "stockQuantity": { "type": "number", "description": "Current on-hand stock count" },
+        "minStockLevel": { "type": "number", "description": "Threshold for low stock alert" },
+        "unit": { "type": "string", "maxLength": 50, "description": "Unit of measurement" },
+        "imageUrl": { "type": "string", "maxLength": 500000, "description": "Image URL or data URI" },
+        "descriptionAr": { "type": "string", "maxLength": 1000, "description": "Optional notes" }
+      },
+      "required": ["barcode", "nameAr", "sellingPrice", "stockQuantity"]
+    },
+    "Order": {
+      "title": "Order",
+      "description": "Sales invoice transaction in RogueByte POS",
+      "type": "object",
+      "properties": {
+        "invoiceNumber": { "type": "string", "maxLength": 64, "description": "Unique tax invoice number" },
+        "orderNumber": { "type": "number", "description": "Sequential shift order number" },
+        "branchId": { "type": "string", "maxLength": 64, "description": "Branch identifier" },
+        "branchName": { "type": "string", "maxLength": 200, "description": "Branch display name" },
+        "cashierId": { "type": "string", "maxLength": 64, "description": "Cashier staff identifier" },
+        "cashierName": { "type": "string", "maxLength": 200, "description": "Cashier display name" },
+        "customerName": { "type": "string", "maxLength": 200, "description": "Customer name" },
+        "customerPhone": { "type": "string", "maxLength": 50, "description": "Customer phone" },
+        "subtotal": { "type": "number", "description": "Order subtotal in OMR" },
+        "discount": { "type": "number", "description": "Discount in OMR" },
+        "vatAmount": { "type": "number", "description": "5% VAT amount in OMR" },
+        "vatRate": { "type": "number", "description": "VAT percentage" },
+        "grandTotal": { "type": "number", "description": "Grand total paid in OMR" },
+        "status": { "type": "string", "enum": ["completed", "refunded", "cancelled"], "description": "Order status" },
+        "createdAt": { "type": "string", "description": "ISO timestamp" },
+        "notes": { "type": "string", "maxLength": 500, "description": "Order notes" }
+      },
+      "required": ["invoiceNumber", "grandTotal", "status", "createdAt"]
+    },
+    "Branch": {
+      "title": "Branch",
+      "description": "Store location or retail branch",
+      "type": "object",
+      "properties": {
+        "nameAr": { "type": "string", "maxLength": 200, "description": "Branch Arabic name" },
+        "nameEn": { "type": "string", "maxLength": 200, "description": "Branch English name" },
+        "code": { "type": "string", "maxLength": 30, "description": "Branch short code" },
+        "addressAr": { "type": "string", "maxLength": 500, "description": "Arabic address" },
+        "phone": { "type": "string", "maxLength": 50, "description": "Phone number" },
+        "crNumber": { "type": "string", "maxLength": 100, "description": "Commercial registration number" },
+        "vatNumber": { "type": "string", "maxLength": 100, "description": "VAT tax identification number" },
+        "isMain": { "type": "boolean", "description": "Whether this is the headquarters" },
+        "managerName": { "type": "string", "maxLength": 200, "description": "Branch manager" }
+      },
+      "required": ["nameAr", "code"]
+    },
+    "Staff": {
+      "title": "Staff",
+      "description": "Employee or system user",
+      "type": "object",
+      "properties": {
+        "nameAr": { "type": "string", "maxLength": 200, "description": "Arabic name" },
+        "nameEn": { "type": "string", "maxLength": 200, "description": "English name" },
+        "email": { "type": "string", "maxLength": 200, "description": "Email address" },
+        "pinCode": { "type": "string", "maxLength": 10, "description": "4-digit secret PIN" },
+        "role": { "type": "string", "enum": ["cashier", "accountant", "manager"], "description": "Access level" },
+        "branchId": { "type": "string", "maxLength": 64, "description": "Assigned branch ID" },
+        "isActive": { "type": "boolean", "description": "Whether employee can login" },
+        "phone": { "type": "string", "maxLength": 50, "description": "Phone number" }
+      },
+      "required": ["nameAr", "pinCode", "role"]
+    },
+    "Expense": {
+      "title": "Expense",
+      "description": "Store operational expense entry",
+      "type": "object",
+      "properties": {
+        "titleAr": { "type": "string", "maxLength": 300, "description": "Expense title Arabic" },
+        "titleEn": { "type": "string", "maxLength": 300, "description": "Expense title English" },
+        "amount": { "type": "number", "description": "Amount in OMR" },
+        "category": { "type": "string", "maxLength": 100, "description": "Expense category" },
+        "branchId": { "type": "string", "maxLength": 64, "description": "Branch where expense incurred" },
+        "date": { "type": "string", "description": "ISO date" },
+        "recordedBy": { "type": "string", "maxLength": 200, "description": "Name of user who recorded expense" },
+        "notes": { "type": "string", "maxLength": 500, "description": "Additional notes" }
+      },
+      "required": ["titleAr", "amount", "category", "date"]
+    },
+    "Settings": {
+      "title": "Settings",
+      "description": "Global store and invoicing configuration",
+      "type": "object",
+      "properties": {
+        "companyNameAr": { "type": "string", "maxLength": 200, "description": "Company name Arabic" },
+        "companyNameEn": { "type": "string", "maxLength": 200, "description": "Company name English" },
+        "logoUrl": { "type": "string", "maxLength": 500000, "description": "Base64 or image URL" },
+        "defaultTaxRate": { "type": "number", "description": "VAT tax rate percentage" },
+        "crNumber": { "type": "string", "maxLength": 100, "description": "Commercial registration number" },
+        "vatNumber": { "type": "string", "maxLength": 100, "description": "VAT ID" },
+        "phone": { "type": "string", "maxLength": 50, "description": "Contact phone" },
+        "email": { "type": "string", "maxLength": 200, "description": "Contact email" },
+        "receiptHeaderNoteAr": { "type": "string", "maxLength": 500, "description": "Receipt top text" },
+        "receiptFooterNoteAr": { "type": "string", "maxLength": 500, "description": "Receipt footer text" },
+        "receiptPaperWidth": { "type": "string", "enum": ["80mm", "58mm", "a4"], "description": "Paper size" },
+        "soundEnabled": { "type": "boolean", "description": "POS audio sounds" }
+      },
+      "required": ["companyNameAr", "defaultTaxRate"]
+    }
+  },
+  "firestore": {
+    "/products/{productId}": {
+      "schema": { "$ref": "#/entities/Product" },
+      "description": "Collection of retail items and stock in POS"
+    },
+    "/orders/{orderId}": {
+      "schema": { "$ref": "#/entities/Order" },
+      "description": "Collection of completed tax sales invoices"
+    },
+    "/branches/{branchId}": {
+      "schema": { "$ref": "#/entities/Branch" },
+      "description": "Collection of retail branches"
+    },
+    "/staff/{staffId}": {
+      "schema": { "$ref": "#/entities/Staff" },
+      "description": "Collection of employee profiles and PIN codes"
+    },
+    "/expenses/{expenseId}": {
+      "schema": { "$ref": "#/entities/Expense" },
+      "description": "Operational expenses ledger"
+    },
+    "/settings/{settingsId}": {
+      "schema": { "$ref": "#/entities/Settings" },
+      "description": "System and receipt configuration"
+    }
+  }
+}

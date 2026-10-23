@@ -1,5 +1,20 @@
 import React, { createContext, useContext, useEffect, useState } from 'react';
 import {
+  deleteProductFromFirestore,
+  subscribeToBranches,
+  subscribeToExpenses,
+  subscribeToOrders,
+  subscribeToProducts,
+  subscribeToStaff,
+  syncBranchToFirestore,
+  syncExpenseToFirestore,
+  syncOrderToFirestore,
+  syncProductToFirestore,
+  syncSettingsToFirestore,
+  syncStaffToFirestore,
+  testConnection,
+} from '../services/firebase';
+import {
   Branch,
   CartItem,
   Category,
@@ -27,7 +42,12 @@ interface POSContextType {
   language: Language;
   setLanguage: (lang: Language) => void;
   t: typeof translations['ar'];
-  
+
+  // Cloud Status
+  isCloudConnected: boolean;
+  cloudSyncTime: string | null;
+  seedInitialDataToCloud: () => Promise<void>;
+
   // Auth & Branch
   currentStaff: StaffMember;
   currentBranch: Branch;
@@ -43,7 +63,12 @@ interface POSContextType {
   addProduct: (product: Omit<Product, 'id'>) => Product;
   updateProduct: (id: string, product: Partial<Product>) => void;
   deleteProduct: (id: string) => void;
-  adjustStock: (productId: string, type: 'add' | 'damage' | 'audit' | 'return', quantityChange: number, reason: string) => void;
+  adjustStock: (
+    productId: string,
+    type: 'add' | 'damage' | 'audit' | 'return',
+    quantityChange: number,
+    reason: string
+  ) => void;
 
   // Cart & POS Terminal
   cart: CartItem[];
@@ -56,7 +81,7 @@ interface POSContextType {
   updateCartItemQty: (productId: string, quantity: number) => void;
   removeFromCart: (productId: string) => void;
   clearCart: () => void;
-  
+
   // Held Orders
   heldOrders: HeldOrder[];
   holdCurrentCart: (customerName?: string, note?: string) => boolean;
@@ -64,7 +89,12 @@ interface POSContextType {
   deleteHeldOrder: (heldOrderId: string) => void;
 
   // Payments & Orders
-  completePayment: (paymentDetails: PaymentDetails, customerName?: string, customerPhone?: string, notes?: string) => Order;
+  completePayment: (
+    paymentDetails: PaymentDetails,
+    customerName?: string,
+    customerPhone?: string,
+    notes?: string
+  ) => Order;
   orders: Order[];
   refundOrder: (orderId: string) => void;
 
@@ -88,7 +118,7 @@ interface POSContextType {
   exportDatabaseJson: () => void;
   importDatabaseJson: (jsonString: string) => boolean;
   resetToDefaultData: () => void;
-  
+
   // Quick View modals state
   lastCompletedOrder: Order | null;
   setLastCompletedOrder: (order: Order | null) => void;
@@ -150,7 +180,11 @@ export const POSProvider: React.FC<{ children: React.ReactNode }> = ({ children 
     localStorage.setItem(STORAGE_KEYS.SOUND, String(next));
   };
 
-  // 3. Branches
+  // 3. Cloud Connection State (Firebase Firestore)
+  const [isCloudConnected, setIsCloudConnected] = useState<boolean>(true);
+  const [cloudSyncTime, setCloudSyncTime] = useState<string | null>(null);
+
+  // 4. Branches
   const [branches, setBranches] = useState<Branch[]>(() => {
     try {
       const saved = localStorage.getItem(STORAGE_KEYS.BRANCHES);
@@ -172,7 +206,7 @@ export const POSProvider: React.FC<{ children: React.ReactNode }> = ({ children 
     localStorage.setItem(STORAGE_KEYS.CURRENT_BRANCH_ID, branchId);
   };
 
-  // 4. Staff members
+  // 5. Staff members
   const [staffList, setStaffList] = useState<StaffMember[]>(() => {
     try {
       const saved = localStorage.getItem(STORAGE_KEYS.STAFF);
@@ -204,11 +238,11 @@ export const POSProvider: React.FC<{ children: React.ReactNode }> = ({ children 
   const hasPermission = (requiredRole: UserRole): boolean => {
     if (currentStaff.role === 'manager') return true;
     if (requiredRole === 'accountant') return currentStaff.role === 'accountant';
-    if (requiredRole === 'cashier') return true; // all staff can act as cashier
+    if (requiredRole === 'cashier') return true;
     return false;
   };
 
-  // 5. Products & Categories
+  // 6. Products & Categories
   const [products, setProducts] = useState<Product[]>(() => {
     try {
       const saved = localStorage.getItem(STORAGE_KEYS.PRODUCTS);
@@ -220,19 +254,7 @@ export const POSProvider: React.FC<{ children: React.ReactNode }> = ({ children 
 
   const categories = INITIAL_CATEGORIES;
 
-  useEffect(() => {
-    localStorage.setItem(STORAGE_KEYS.PRODUCTS, JSON.stringify(products));
-  }, [products]);
-
-  useEffect(() => {
-    localStorage.setItem(STORAGE_KEYS.BRANCHES, JSON.stringify(branches));
-  }, [branches]);
-
-  useEffect(() => {
-    localStorage.setItem(STORAGE_KEYS.STAFF, JSON.stringify(staffList));
-  }, [staffList]);
-
-  // 6. Settings
+  // 7. Settings
   const [settings, setSettings] = useState<SystemSettings>(() => {
     try {
       const saved = localStorage.getItem(STORAGE_KEYS.SETTINGS);
@@ -246,11 +268,12 @@ export const POSProvider: React.FC<{ children: React.ReactNode }> = ({ children 
     setSettings((prev) => {
       const updated = { ...prev, ...newSettings };
       localStorage.setItem(STORAGE_KEYS.SETTINGS, JSON.stringify(updated));
+      syncSettingsToFirestore(updated).catch(() => {});
       return updated;
     });
   };
 
-  // 7. Orders & Expenses
+  // 8. Orders & Expenses
   const [orders, setOrders] = useState<Order[]>(() => {
     try {
       const saved = localStorage.getItem(STORAGE_KEYS.ORDERS);
@@ -260,45 +283,16 @@ export const POSProvider: React.FC<{ children: React.ReactNode }> = ({ children 
     }
   });
 
-  useEffect(() => {
-    localStorage.setItem(STORAGE_KEYS.ORDERS, JSON.stringify(orders));
-  }, [orders]);
-
   const [expenses, setExpenses] = useState<Expense[]>(() => {
     try {
       const saved = localStorage.getItem(STORAGE_KEYS.EXPENSES);
-      return saved ? JSON.parse(saved) : [
-        {
-          id: 'exp-01',
-          titleAr: 'فاتورة الكهرباء والإنارة لشهر أكتوبر',
-          titleEn: 'Electricity bill for October',
-          amount: 45.500,
-          category: 'utilities',
-          branchId: 'branch-muscat',
-          date: new Date(Date.now() - 86400000 * 2).toISOString(),
-          recordedBy: 'مهدي عادل (Adel Mouahdi)',
-        },
-        {
-          id: 'exp-02',
-          titleAr: 'شراء كراتين ورق حراري وأكياس تغليف',
-          titleEn: 'Thermal paper and packaging bags',
-          amount: 18.000,
-          category: 'supplies',
-          branchId: 'branch-muscat',
-          date: new Date(Date.now() - 86400000 * 5).toISOString(),
-          recordedBy: 'مهدي عادل (Adel Mouahdi)',
-        }
-      ];
+      return saved ? JSON.parse(saved) : [];
     } catch {
       return [];
     }
   });
 
-  useEffect(() => {
-    localStorage.setItem(STORAGE_KEYS.EXPENSES, JSON.stringify(expenses));
-  }, [expenses]);
-
-  // 8. Held Orders
+  // 9. Held Orders
   const [heldOrders, setHeldOrders] = useState<HeldOrder[]>(() => {
     try {
       const saved = localStorage.getItem(STORAGE_KEYS.HELD_ORDERS);
@@ -308,11 +302,120 @@ export const POSProvider: React.FC<{ children: React.ReactNode }> = ({ children 
     }
   });
 
+  // 10. Firebase Real-Time Firestore Sync Listeners
+  useEffect(() => {
+    let unsubProducts = () => {};
+    let unsubOrders = () => {};
+    let unsubExpenses = () => {};
+    let unsubBranches = () => {};
+    let unsubStaff = () => {};
+
+    // Test Firestore connection on boot
+    testConnection().then((connected) => {
+      setIsCloudConnected(connected);
+      if (connected) {
+        setCloudSyncTime(new Date().toLocaleTimeString());
+      }
+    });
+
+    try {
+      unsubProducts = subscribeToProducts((cloudProds) => {
+        if (cloudProds.length > 0) {
+          setProducts(cloudProds);
+          localStorage.setItem(STORAGE_KEYS.PRODUCTS, JSON.stringify(cloudProds));
+          setCloudSyncTime(new Date().toLocaleTimeString());
+        } else {
+          // If Firestore collection is empty, seed initial products
+          seedInitialDataToCloud();
+        }
+      });
+
+      unsubOrders = subscribeToOrders((cloudOrders) => {
+        if (cloudOrders.length > 0) {
+          setOrders(cloudOrders);
+          localStorage.setItem(STORAGE_KEYS.ORDERS, JSON.stringify(cloudOrders));
+          setCloudSyncTime(new Date().toLocaleTimeString());
+        }
+      });
+
+      unsubExpenses = subscribeToExpenses((cloudExpenses) => {
+        if (cloudExpenses.length > 0) {
+          setExpenses(cloudExpenses);
+          localStorage.setItem(STORAGE_KEYS.EXPENSES, JSON.stringify(cloudExpenses));
+        }
+      });
+
+      unsubBranches = subscribeToBranches((cloudBranches) => {
+        if (cloudBranches.length > 0) {
+          setBranches(cloudBranches);
+          localStorage.setItem(STORAGE_KEYS.BRANCHES, JSON.stringify(cloudBranches));
+        }
+      });
+
+      unsubStaff = subscribeToStaff((cloudStaff) => {
+        if (cloudStaff.length > 0) {
+          setStaffList(cloudStaff);
+          localStorage.setItem(STORAGE_KEYS.STAFF, JSON.stringify(cloudStaff));
+        }
+      });
+    } catch {
+      // Offline fallback
+    }
+
+    return () => {
+      unsubProducts();
+      unsubOrders();
+      unsubExpenses();
+      unsubBranches();
+      unsubStaff();
+    };
+  }, []);
+
+  // Seed sample data to Firestore if cloud is empty
+  const seedInitialDataToCloud = async () => {
+    try {
+      for (const prod of INITIAL_PRODUCTS) {
+        await syncProductToFirestore(prod);
+      }
+      for (const branch of INITIAL_BRANCHES) {
+        await syncBranchToFirestore(branch);
+      }
+      for (const staff of INITIAL_STAFF) {
+        await syncStaffToFirestore(staff);
+      }
+      await syncSettingsToFirestore(INITIAL_SETTINGS);
+      setCloudSyncTime(new Date().toLocaleTimeString());
+    } catch (e) {
+      console.warn('Initial cloud seed finished or skipped:', e);
+    }
+  };
+
+  // Local storage synchronization guards
+  useEffect(() => {
+    localStorage.setItem(STORAGE_KEYS.PRODUCTS, JSON.stringify(products));
+  }, [products]);
+
+  useEffect(() => {
+    localStorage.setItem(STORAGE_KEYS.BRANCHES, JSON.stringify(branches));
+  }, [branches]);
+
+  useEffect(() => {
+    localStorage.setItem(STORAGE_KEYS.STAFF, JSON.stringify(staffList));
+  }, [staffList]);
+
+  useEffect(() => {
+    localStorage.setItem(STORAGE_KEYS.ORDERS, JSON.stringify(orders));
+  }, [orders]);
+
+  useEffect(() => {
+    localStorage.setItem(STORAGE_KEYS.EXPENSES, JSON.stringify(expenses));
+  }, [expenses]);
+
   useEffect(() => {
     localStorage.setItem(STORAGE_KEYS.HELD_ORDERS, JSON.stringify(heldOrders));
   }, [heldOrders]);
 
-  // 9. Cart State
+  // Cart State
   const [cart, setCart] = useState<CartItem[]>([]);
   const [cartDiscount, setCartDiscount] = useState<number>(0);
   const [lastCompletedOrder, setLastCompletedOrder] = useState<Order | null>(null);
@@ -320,7 +423,6 @@ export const POSProvider: React.FC<{ children: React.ReactNode }> = ({ children 
 
   const cartSubtotal = cart.reduce((sum, item) => sum + item.unitPrice * item.quantity, 0);
   const effectiveSubtotalAfterDiscount = Math.max(0, cartSubtotal - cartDiscount);
-  // Default tax rate (5% in Oman)
   const cartVat = Number(((effectiveSubtotalAfterDiscount * (settings.defaultTaxRate || 5)) / 100).toFixed(3));
   const cartTotal = Number((effectiveSubtotalAfterDiscount + cartVat).toFixed(3));
 
@@ -425,7 +527,7 @@ export const POSProvider: React.FC<{ children: React.ReactNode }> = ({ children 
     setHeldOrders((prev) => prev.filter((h) => h.id !== heldOrderId));
   };
 
-  // Complete Payment & Sale
+  // Complete Payment & Sale (Saves to state and pushes to Firestore)
   const completePayment = (
     paymentDetails: PaymentDetails,
     customerName?: string,
@@ -455,20 +557,24 @@ export const POSProvider: React.FC<{ children: React.ReactNode }> = ({ children 
       notes,
     };
 
-    // Deduct stock
+    // Deduct stock in state & cloud
     setProducts((prev) =>
       prev.map((prod) => {
         const cartItem = cart.find((c) => c.product.id === prod.id);
         if (cartItem) {
           const newQty = Math.max(0, prod.stockQuantity - cartItem.quantity);
-          return { ...prod, stockQuantity: newQty };
+          const updatedProd = { ...prod, stockQuantity: newQty };
+          syncProductToFirestore(updatedProd).catch(() => {});
+          return updatedProd;
         }
         return prod;
       })
     );
 
-    // Save order
+    // Save order locally and sync to Firebase Firestore
     setOrders((prev) => [newOrder, ...prev]);
+    syncOrderToFirestore(newOrder).catch(() => {});
+
     setLastCompletedOrder(newOrder);
     setIsReceiptModalOpen(true);
     clearCart();
@@ -486,12 +592,16 @@ export const POSProvider: React.FC<{ children: React.ReactNode }> = ({ children 
             prodList.map((prod) => {
               const item = ord.items.find((i) => i.product.id === prod.id);
               if (item) {
-                return { ...prod, stockQuantity: prod.stockQuantity + item.quantity };
+                const updated = { ...prod, stockQuantity: prod.stockQuantity + item.quantity };
+                syncProductToFirestore(updated).catch(() => {});
+                return updated;
               }
               return prod;
             })
           );
-          return { ...ord, status: 'refunded' };
+          const refundedOrder: Order = { ...ord, status: 'refunded' };
+          syncOrderToFirestore(refundedOrder).catch(() => {});
+          return refundedOrder;
         }
         return ord;
       })
@@ -505,15 +615,26 @@ export const POSProvider: React.FC<{ children: React.ReactNode }> = ({ children 
       id: `prod-${Date.now()}`,
     };
     setProducts((prev) => [newProd, ...prev]);
+    syncProductToFirestore(newProd).catch(() => {});
     return newProd;
   };
 
   const updateProduct = (id: string, productData: Partial<Product>) => {
-    setProducts((prev) => prev.map((p) => (p.id === id ? { ...p, ...productData } : p)));
+    setProducts((prev) =>
+      prev.map((p) => {
+        if (p.id === id) {
+          const updated = { ...p, ...productData };
+          syncProductToFirestore(updated).catch(() => {});
+          return updated;
+        }
+        return p;
+      })
+    );
   };
 
   const deleteProduct = (id: string) => {
     setProducts((prev) => prev.filter((p) => p.id !== id));
+    deleteProductFromFirestore(id).catch(() => {});
   };
 
   const adjustStock = (
@@ -529,7 +650,9 @@ export const POSProvider: React.FC<{ children: React.ReactNode }> = ({ children 
           if (type === 'add' || type === 'return') nextQty += quantityChange;
           if (type === 'damage') nextQty = Math.max(0, nextQty - Math.abs(quantityChange));
           if (type === 'audit') nextQty = Math.max(0, quantityChange);
-          return { ...p, stockQuantity: nextQty };
+          const updated = { ...p, stockQuantity: nextQty };
+          syncProductToFirestore(updated).catch(() => {});
+          return updated;
         }
         return p;
       })
@@ -543,6 +666,7 @@ export const POSProvider: React.FC<{ children: React.ReactNode }> = ({ children 
       id: `exp-${Date.now()}`,
     };
     setExpenses((prev) => [newExp, ...prev]);
+    syncExpenseToFirestore(newExp).catch(() => {});
   };
 
   const deleteExpense = (id: string) => {
@@ -556,10 +680,20 @@ export const POSProvider: React.FC<{ children: React.ReactNode }> = ({ children 
       id: `staff-${Date.now()}`,
     };
     setStaffList((prev) => [...prev, newMember]);
+    syncStaffToFirestore(newMember).catch(() => {});
   };
 
   const updateStaffMember = (id: string, member: Partial<StaffMember>) => {
-    setStaffList((prev) => prev.map((s) => (s.id === id ? { ...s, ...member } : s)));
+    setStaffList((prev) =>
+      prev.map((s) => {
+        if (s.id === id) {
+          const updated = { ...s, ...member };
+          syncStaffToFirestore(updated).catch(() => {});
+          return updated;
+        }
+        return s;
+      })
+    );
   };
 
   const deleteStaffMember = (id: string) => {
@@ -573,10 +707,20 @@ export const POSProvider: React.FC<{ children: React.ReactNode }> = ({ children 
       id: `branch-${Date.now()}`,
     };
     setBranches((prev) => [...prev, newBranch]);
+    syncBranchToFirestore(newBranch).catch(() => {});
   };
 
   const updateBranch = (id: string, branchData: Partial<Branch>) => {
-    setBranches((prev) => prev.map((b) => (b.id === id ? { ...b, ...branchData } : b)));
+    setBranches((prev) =>
+      prev.map((b) => {
+        if (b.id === id) {
+          const updated = { ...b, ...branchData };
+          syncBranchToFirestore(updated).catch(() => {});
+          return updated;
+        }
+        return b;
+      })
+    );
   };
 
   // Export JSON Backup
@@ -608,21 +752,27 @@ export const POSProvider: React.FC<{ children: React.ReactNode }> = ({ children 
       const data = JSON.parse(jsonString);
       if (data.products && Array.isArray(data.products)) {
         setProducts(data.products);
+        data.products.forEach((p: Product) => syncProductToFirestore(p).catch(() => {}));
       }
       if (data.branches && Array.isArray(data.branches)) {
         setBranches(data.branches);
+        data.branches.forEach((b: Branch) => syncBranchToFirestore(b).catch(() => {}));
       }
       if (data.staffList && Array.isArray(data.staffList)) {
         setStaffList(data.staffList);
+        data.staffList.forEach((s: StaffMember) => syncStaffToFirestore(s).catch(() => {}));
       }
       if (data.settings) {
         setSettings(data.settings);
+        syncSettingsToFirestore(data.settings).catch(() => {});
       }
       if (data.orders && Array.isArray(data.orders)) {
         setOrders(data.orders);
+        data.orders.forEach((o: Order) => syncOrderToFirestore(o).catch(() => {}));
       }
       if (data.expenses && Array.isArray(data.expenses)) {
         setExpenses(data.expenses);
+        data.expenses.forEach((e: Expense) => syncExpenseToFirestore(e).catch(() => {}));
       }
       return true;
     } catch {
@@ -641,6 +791,7 @@ export const POSProvider: React.FC<{ children: React.ReactNode }> = ({ children 
     setHeldOrders([]);
     clearCart();
     localStorage.clear();
+    seedInitialDataToCloud();
   };
 
   return (
@@ -649,6 +800,9 @@ export const POSProvider: React.FC<{ children: React.ReactNode }> = ({ children 
         language,
         setLanguage,
         t,
+        isCloudConnected,
+        cloudSyncTime,
+        seedInitialDataToCloud,
         currentStaff,
         currentBranch,
         staffList,

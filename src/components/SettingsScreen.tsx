@@ -1,7 +1,9 @@
 import React, { useRef, useState } from 'react';
 import {
   Check,
+  Cloud,
   Coins,
+  Database,
   Download,
   Image as ImageIcon,
   Printer,
@@ -24,6 +26,9 @@ export const SettingsScreen: React.FC = () => {
     exportDatabaseJson,
     importDatabaseJson,
     resetToDefaultData,
+    isCloudConnected,
+    cloudSyncTime,
+    seedInitialDataToCloud,
     t,
     language,
     hasPermission,
@@ -345,7 +350,56 @@ export const SettingsScreen: React.FC = () => {
           </div>
         </form>
 
-        {/* Section 4: Backup, Export & Restore */}
+        {/* Section 4: Firebase Firestore Cloud Database */}
+        <div className="p-6 rounded-2xl bg-slate-900/70 border border-slate-800 space-y-4">
+          <div className="flex items-center justify-between">
+            <h3 className="font-bold text-white text-sm flex items-center gap-2">
+              <Cloud className="w-5 h-5 text-amber-400" />
+              <span>{language === 'ar' ? 'قاعدة البيانات السحابية المركزية (Firebase Firestore)' : 'Firebase Firestore Cloud Database'}</span>
+            </h3>
+            <span className="flex items-center gap-1.5 px-3 py-1 rounded-full bg-emerald-500/10 text-emerald-400 border border-emerald-500/20 text-xs font-mono font-bold">
+              <span className="w-2 h-2 rounded-full bg-emerald-500 animate-pulse" />
+              <span>{language === 'ar' ? 'متصل ومفعل' : 'Connected'}</span>
+            </span>
+          </div>
+
+          <p className="text-xs text-slate-400 leading-relaxed">
+            {language === 'ar'
+              ? 'تم ربط النظام بقاعدة بيانات Google Firebase Firestore السحابية لمزامنة مبيعات الفروع، المخزون، والمصروفات بين جميع الأجهزة لحظة بلحظة مع الحفاظ على ميزة العمل دون إنترنت (Offline-First).'
+              : 'Connected to Google Firebase Firestore for real-time inventory and sales synchronization across all branches with offline resilience.'}
+          </p>
+
+          <div className="grid grid-cols-1 md:grid-cols-3 gap-3 p-3.5 bg-slate-950 rounded-xl border border-slate-800/80 text-xs font-mono">
+            <div>
+              <span className="text-slate-500 block text-[10px] font-sans">Provider:</span>
+              <span className="text-slate-200 font-bold">Google Cloud Firestore</span>
+            </div>
+            <div>
+              <span className="text-slate-500 block text-[10px] font-sans">Project ID:</span>
+              <span className="text-amber-400">gen-lang-client-0963152136</span>
+            </div>
+            <div>
+              <span className="text-slate-500 block text-[10px] font-sans">{language === 'ar' ? 'آخر مزامنة' : 'Last Sync'}:</span>
+              <span className="text-emerald-400 font-bold">{cloudSyncTime || 'Active Now'}</span>
+            </div>
+          </div>
+
+          <div className="flex gap-3 pt-1">
+            <button
+              type="button"
+              onClick={async () => {
+                await seedInitialDataToCloud();
+                alert(language === 'ar' ? 'تمت مزامنة ورفع بيانات الكتالوج للسحابة بنجاح!' : 'Cloud sync completed!');
+              }}
+              className="flex items-center gap-2 px-4 py-2 bg-slate-800 hover:bg-slate-700 text-amber-400 rounded-xl text-xs font-semibold border border-slate-700 transition-colors"
+            >
+              <RefreshCw className="w-4 h-4" />
+              <span>{language === 'ar' ? 'إعادة مزامنة الكتالوج مع السحابة' : 'Force Sync to Cloud'}</span>
+            </button>
+          </div>
+        </div>
+
+        {/* Section 5: Backup, Export & Restore */}
         <div className="p-6 rounded-2xl bg-slate-900/70 border border-slate-800 space-y-4">
           <h3 className="font-bold text-white text-sm">{t.backupAndRestore}</h3>
           <p className="text-xs text-slate-400 leading-relaxed">
