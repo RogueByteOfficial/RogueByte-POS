@@ -234,7 +234,7 @@ export const StaffManagementScreen: React.FC = () => {
 
                     {/* PIN */}
                     <td className="py-3 px-4 font-mono font-bold text-slate-300">
-                      •••• ({staff.pinCode})
+                      {hasPermission('manager') || staff.id === currentStaff.id ? `•••• (${staff.pinCode})` : '••••'}
                     </td>
 
                     {/* Status */}

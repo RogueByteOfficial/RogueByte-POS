@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useEffect, useState } from 'react';
 import {
   Building2,
   Cloud,
@@ -54,16 +54,29 @@ export const Navbar: React.FC<NavbarProps> = ({ activeTab, setActiveTab }) => {
     setLanguage(language === 'ar' ? 'en' : 'ar');
   };
 
-  const navItems: { id: ActiveTab; label: string; icon: React.ReactNode }[] = [
-    { id: 'pos', label: t.tabPOS, icon: <LayoutGrid className="w-4 h-4" /> },
-    { id: 'inventory', label: t.tabInventory, icon: <Package className="w-4 h-4" /> },
-    { id: 'sales', label: t.tabSales, icon: <Receipt className="w-4 h-4" /> },
-    { id: 'accounting', label: t.tabAccounting, icon: <Scale className="w-4 h-4" /> },
-    { id: 'branches', label: t.tabBranches, icon: <Building2 className="w-4 h-4" /> },
-    { id: 'staff', label: t.tabStaff, icon: <Users className="w-4 h-4" /> },
-    { id: 'settings', label: t.tabSettings, icon: <Settings className="w-4 h-4" /> },
-    { id: 'about', label: t.tabAbout, icon: <Sparkles className="w-4 h-4" /> },
+  useEffect(() => {
+    if (currentStaff.role === 'cashier' && activeTab !== 'pos') {
+      setActiveTab('pos');
+    } else if (
+      currentStaff.role === 'accountant' &&
+      (activeTab === 'inventory' || activeTab === 'settings')
+    ) {
+      setActiveTab('sales');
+    }
+  }, [currentStaff.role, activeTab, setActiveTab]);
+
+  const allNavItems: { id: ActiveTab; label: string; icon: React.ReactNode; allowedRoles: ('cashier' | 'accountant' | 'manager')[] }[] = [
+    { id: 'pos', label: t.tabPOS, icon: <LayoutGrid className="w-4 h-4" />, allowedRoles: ['cashier', 'accountant', 'manager'] },
+    { id: 'sales', label: t.tabSales, icon: <Receipt className="w-4 h-4" />, allowedRoles: ['accountant', 'manager'] },
+    { id: 'accounting', label: t.tabAccounting, icon: <Scale className="w-4 h-4" />, allowedRoles: ['accountant', 'manager'] },
+    { id: 'inventory', label: t.tabInventory, icon: <Package className="w-4 h-4" />, allowedRoles: ['manager'] },
+    { id: 'branches', label: t.tabBranches, icon: <Building2 className="w-4 h-4" />, allowedRoles: ['accountant', 'manager'] },
+    { id: 'staff', label: t.tabStaff, icon: <Users className="w-4 h-4" />, allowedRoles: ['accountant', 'manager'] },
+    { id: 'settings', label: t.tabSettings, icon: <Settings className="w-4 h-4" />, allowedRoles: ['manager'] },
+    { id: 'about', label: t.tabAbout, icon: <Sparkles className="w-4 h-4" />, allowedRoles: ['accountant', 'manager'] },
   ];
+
+  const visibleNavItems = allNavItems.filter((item) => item.allowedRoles.includes(currentStaff.role));
 
   return (
     <>
@@ -90,7 +103,7 @@ export const Navbar: React.FC<NavbarProps> = ({ activeTab, setActiveTab }) => {
 
         {/* Zone 2: Navigation Links (Single-line controls) */}
         <nav className="hidden lg:flex items-center gap-1 overflow-x-auto">
-          {navItems.map((item) => {
+          {visibleNavItems.map((item) => {
             const isActive = activeTab === item.id;
             return (
               <button
@@ -209,30 +222,23 @@ export const Navbar: React.FC<NavbarProps> = ({ activeTab, setActiveTab }) => {
         </div>
       </header>
 
-      {/* Mobile Bottom Navigation Bar (If on small viewport) */}
-      <div className="lg:hidden flex items-center justify-around bg-slate-900 border-t border-slate-800 py-2 px-1 shrink-0 overflow-x-auto z-20">
-        {navItems.slice(0, 5).map((item) => (
-          <button
-            key={item.id}
-            onClick={() => setActiveTab(item.id)}
-            className={`flex flex-col items-center gap-1 px-2 py-1 rounded-lg text-[10px] font-medium transition-colors ${
-              activeTab === item.id ? 'text-amber-400 font-bold' : 'text-slate-400'
-            }`}
-          >
-            {item.icon}
-            <span className="truncate max-w-[60px]">{item.label}</span>
-          </button>
-        ))}
-        <button
-          onClick={() => setActiveTab('settings')}
-          className={`flex flex-col items-center gap-1 px-2 py-1 rounded-lg text-[10px] font-medium transition-colors ${
-            activeTab === 'settings' ? 'text-amber-400 font-bold' : 'text-slate-400'
-          }`}
-        >
-          <Settings className="w-4 h-4" />
-          <span>{t.tabSettings}</span>
-        </button>
-      </div>
+      {/* Mobile Bottom Navigation Bar (Hidden for Cashier to maximize sales viewport) */}
+      {visibleNavItems.length > 1 && (
+        <div className="lg:hidden flex items-center justify-around bg-slate-900 border-t border-slate-800 py-2 px-1 shrink-0 overflow-x-auto z-20">
+          {visibleNavItems.map((item) => (
+            <button
+              key={item.id}
+              onClick={() => setActiveTab(item.id)}
+              className={`flex flex-col items-center gap-1 px-2 py-1 rounded-lg text-[10px] font-medium transition-colors ${
+                activeTab === item.id ? 'text-amber-400 font-bold' : 'text-slate-400'
+              }`}
+            >
+              {item.icon}
+              <span className="truncate max-w-[65px]">{item.label}</span>
+            </button>
+          ))}
+        </div>
+      )}
 
       {/* PIN Switch Modal */}
       <PinModal isOpen={isPinModalOpen} onClose={() => setIsPinModalOpen(false)} />
