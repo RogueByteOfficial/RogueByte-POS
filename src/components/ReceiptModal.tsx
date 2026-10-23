@@ -14,12 +14,43 @@ export const ReceiptModal: React.FC<ReceiptModalProps> = ({ isOpen, onClose }) =
   if (!isOpen || !lastCompletedOrder) return null;
 
   const order = lastCompletedOrder;
+  const [autoPrintEnabled, setAutoPrintEnabled] = React.useState<boolean>(true);
 
-  const handlePrint = () => {
+  const handlePrint = React.useCallback(() => {
     if (typeof window !== 'undefined') {
       window.print();
     }
-  };
+  }, []);
+
+  // Keyboard shortcut listener (Enter = print, Escape = close / new sale)
+  React.useEffect(() => {
+    if (!isOpen) return;
+
+    const handleKeyDown = (e: KeyboardEvent) => {
+      if (e.key === 'Enter') {
+        e.preventDefault();
+        handlePrint();
+      } else if (e.key === 'Escape') {
+        e.preventDefault();
+        onClose();
+      }
+    };
+
+    window.addEventListener('keydown', handleKeyDown);
+
+    // Auto-trigger print dialog if auto-print is enabled
+    let timer: NodeJS.Timeout | null = null;
+    if (autoPrintEnabled) {
+      timer = setTimeout(() => {
+        handlePrint();
+      }, 350);
+    }
+
+    return () => {
+      window.removeEventListener('keydown', handleKeyDown);
+      if (timer) clearTimeout(timer);
+    };
+  }, [isOpen, handlePrint, onClose, autoPrintEnabled]);
 
   // QR Code payload for invoice verification
   const qrData = `Seller: ${settings.companyNameEn || 'RogueByte'}\nVAT: ${settings.vatNumber}\nInv: ${order.invoiceNumber}\nTime: ${order.createdAt}\nTotal: ${order.grandTotal.toFixed(3)} OMR\nTax: ${order.vatAmount.toFixed(3)} OMR`;
@@ -246,20 +277,35 @@ export const ReceiptModal: React.FC<ReceiptModalProps> = ({ isOpen, onClose }) =
         </div>
 
         {/* Modal Bottom Actions */}
-        <div className="flex items-center justify-between px-6 py-4 border-t border-slate-800 bg-slate-950/80">
-          <button
-            onClick={onClose}
-            className="px-4 py-2 text-xs font-medium text-slate-300 hover:text-white bg-slate-800 hover:bg-slate-700 rounded-xl transition-colors"
-          >
-            {t.newSale}
-          </button>
+        <div className="flex flex-wrap items-center justify-between gap-3 px-6 py-4 border-t border-slate-800 bg-slate-950/80">
+          <div className="flex items-center gap-2">
+            <button
+              onClick={onClose}
+              className="px-4 py-2.5 text-xs font-semibold text-slate-300 hover:text-white bg-slate-800 hover:bg-slate-700 rounded-xl transition-colors"
+            >
+              <span>{t.newSale}</span>
+              <kbd className="ml-1.5 rtl:mr-1.5 rtl:ml-0 px-1.5 py-0.5 text-[10px] bg-slate-900 border border-slate-700 rounded font-mono text-slate-400">Esc</kbd>
+            </button>
+
+            <label className="flex items-center gap-1.5 text-xs text-slate-400 select-none cursor-pointer">
+              <input
+                type="checkbox"
+                checked={autoPrintEnabled}
+                onChange={(e) => setAutoPrintEnabled(e.target.checked)}
+                className="rounded border-slate-700 bg-slate-900 text-amber-500 focus:ring-0"
+              />
+              <span className="text-[11px]">{language === 'ar' ? 'طباعة تلقائية' : 'Auto-Print'}</span>
+            </label>
+          </div>
+
           <div className="flex items-center gap-2">
             <button
               onClick={handlePrint}
-              className="flex items-center gap-2 px-5 py-2.5 bg-amber-500 hover:bg-amber-400 text-slate-950 text-xs font-bold rounded-xl transition-colors shadow-lg shadow-amber-500/20"
+              className="flex items-center gap-2 px-6 py-2.5 bg-amber-500 hover:bg-amber-400 text-slate-950 text-xs font-bold rounded-xl transition-all shadow-lg shadow-amber-500/20 active:scale-[0.98]"
             >
               <Printer className="w-4 h-4" />
               <span>{t.printReceipt}</span>
+              <kbd className="px-1.5 py-0.5 text-[10px] bg-slate-950/20 rounded font-mono font-bold text-slate-900">Enter ↵</kbd>
             </button>
           </div>
         </div>
